@@ -141,9 +141,9 @@ function remove_containers() {
 }
 
 ##############################################
-# Test HEAD one-time
+# Test master one-time
 ##############################################
-testcase "head-once"
+testcase "master-one-time"
 # First sync
 echo "$TESTCASE" > "$REPO"/file
 git -C "$REPO" commit -qam "$TESTCASE"
@@ -152,8 +152,7 @@ GIT_SYNC \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1
@@ -164,7 +163,7 @@ assert_file_eq "$ROOT"/link/file "$TESTCASE"
 pass
 
 ##############################################
-# Test default syncing
+# Test default syncing (master)
 ##############################################
 testcase "default-sync"
 # First sync
@@ -199,9 +198,9 @@ assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
 pass
 
 ##############################################
-# Test HEAD syncing
+# Test master syncing
 ##############################################
-testcase "head-sync"
+testcase "master"
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
 git -C "$REPO" commit -qam "$TESTCASE 1"
@@ -210,8 +209,7 @@ GIT_SYNC \
     --v=5 \
     --wait=0.1 \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 &
@@ -238,7 +236,7 @@ pass
 ##############################################
 # Test branch syncing
 ##############################################
-testcase "branch-sync"
+testcase "branch"
 BRANCH="$TESTCASE"--BRANCH
 # First sync
 git -C "$REPO" checkout -q -b "$BRANCH"
@@ -250,7 +248,7 @@ GIT_SYNC \
     --v=5 \
     --wait=0.1 \
     --repo="file://$REPO" \
-    --branch="$BRANCH" \
+    --rev="$BRANCH" \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 &
@@ -281,7 +279,7 @@ pass
 ##############################################
 # Test tag syncing
 ##############################################
-testcase "tag-sync"
+testcase "simple-tag"
 TAG="$TESTCASE"--TAG
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
@@ -328,7 +326,7 @@ pass
 ##############################################
 # Test tag syncing with annotated tags
 ##############################################
-testcase "tag-sync-annotated"
+testcase "annotated-tag"
 TAG="$TESTCASE"--TAG
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
@@ -375,17 +373,17 @@ pass
 ##############################################
 # Test rev syncing
 ##############################################
-testcase "rev-sync"
+testcase "hash"
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
 git -C "$REPO" commit -qam "$TESTCASE 1"
-REV=$(git -C "$REPO" rev-list -n1 HEAD)
+HASH=$(git -C "$REPO" rev-list -n1 HEAD)
 GIT_SYNC \
     --logtostderr \
     --v=5 \
     --wait=0.1 \
     --repo="file://$REPO" \
-    --rev="$REV" \
+    --rev="$HASH" \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 &
@@ -412,17 +410,17 @@ pass
 ##############################################
 # Test rev-sync one-time
 ##############################################
-testcase "rev-once"
+testcase "hash-once"
 # First sync
 echo "$TESTCASE" > "$REPO"/file
 git -C "$REPO" commit -qam "$TESTCASE"
-REV=$(git -C "$REPO" rev-list -n1 HEAD)
+HASH=$(git -C "$REPO" rev-list -n1 HEAD)
 GIT_SYNC \
     --logtostderr \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --rev="$REV" \
+    --rev="$HASH" \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1
@@ -435,7 +433,42 @@ pass
 ##############################################
 # Test syncing after a crash
 ##############################################
-testcase "crash-cleanup-retry"
+testcase "bad-git-repo"
+# First sync
+echo "$TESTCASE 1" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 1"
+GIT_SYNC \
+    --logtostderr \
+    --v=5 \
+    --one-time \
+    --repo="file://$REPO" \
+    --root="$ROOT" \
+    --dest="link" \
+    > "$DIR"/log."$TESTCASE" 2>&1
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Corrupt it
+rm -f "$ROOT"/.git/HEAD
+# Try again
+GIT_SYNC \
+    --logtostderr \
+    --v=5 \
+    --one-time \
+    --repo="file://$REPO" \
+    --root="$ROOT" \
+    --dest="link" \
+    > "$DIR"/log."$TESTCASE" 2>&1
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Wrap up
+pass
+
+##############################################
+# Test syncing after a crash
+##############################################
+testcase "bad-worktree"
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
 git -C "$REPO" commit -qam "$TESTCASE 1"
@@ -575,8 +608,7 @@ GIT_SYNC \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 || true
@@ -591,8 +623,7 @@ GIT_SYNC \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1
@@ -624,8 +655,7 @@ GIT_SYNC \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 || true
@@ -646,8 +676,7 @@ GIT_SYNC \
     --v=5 \
     --one-time \
     --repo="file://$REPO" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1
@@ -703,7 +732,7 @@ pass
 ##############################################
 # Test http handler
 ##############################################
-testcase "http"
+testcase "http-handler"
 BINDPORT=8888
 # First sync
 echo "$TESTCASE 1" > "$REPO"/file
@@ -746,7 +775,7 @@ pass
 ##############################################
 # Test submodule sync
 ##############################################
-testcase "submodule-sync"
+testcase "submodule"
 
 # Init submodule repo
 SUBMODULE_REPO_NAME="sub"
@@ -843,7 +872,7 @@ pass
 ##############################################
 # Test submodules depth syncing
 ##############################################
-testcase "submodule-sync-depth"
+testcase "submodule-with-depth"
 
 # Init submodule repo
 SUBMODULE_REPO_NAME="sub"
@@ -1022,8 +1051,7 @@ GIT_SYNC \
     --ssh \
     --ssh-known-hosts=false \
     --repo="test@$IP:/src" \
-    --branch=master \
-    --rev=HEAD \
+    --rev=master \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1
