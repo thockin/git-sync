@@ -262,6 +262,51 @@ wait
 pass
 
 ##############################################
+# Test refs/heads/branch syncing
+##############################################
+testcase "branch-ref"
+BRANCH="$TESTCASE"--BRANCH
+# First sync
+git -C "$REPO" checkout -q -b "$BRANCH"
+echo "$TESTCASE 1" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 1"
+git -C "$REPO" checkout -q master
+GIT_SYNC \
+    --logtostderr \
+    --v=5 \
+    --wait=0.1 \
+    --repo="file://$REPO" \
+    --rev="refs/heads/$BRANCH" \
+    --root="$ROOT" \
+    --dest="link" \
+    > "$DIR"/log."$TESTCASE" 2>&1 &
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Add to the branch.
+git -C "$REPO" checkout -q "$BRANCH"
+echo "$TESTCASE 2" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 2"
+git -C "$REPO" checkout -q master
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 2"
+# Move the branch backward
+git -C "$REPO" checkout -q "$BRANCH"
+git -C "$REPO" reset -q --hard HEAD^
+git -C "$REPO" checkout -q master
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Wrap up
+remove_sync_container
+wait
+pass
+
+##############################################
 # Test tag syncing
 ##############################################
 testcase "simple-tag"
@@ -276,6 +321,55 @@ GIT_SYNC \
     --wait=0.1 \
     --repo="file://$REPO" \
     --rev="$TAG" \
+    --root="$ROOT" \
+    --dest="link" \
+    > "$DIR"/log."$TESTCASE" 2>&1 &
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Add something and move the tag forward
+echo "$TESTCASE 2" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 2"
+git -C "$REPO" tag -f "$TAG" >/dev/null
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 2"
+# Move the tag backward
+git -C "$REPO" reset -q --hard HEAD^
+git -C "$REPO" tag -f "$TAG" >/dev/null
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Add something after the tag
+echo "$TESTCASE 3" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 3"
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Wrap up
+remove_sync_container
+wait
+pass
+
+##############################################
+# Test simple refs/tags/foo syncing
+##############################################
+testcase "simple-tag-ref"
+TAG="$TESTCASE"--TAG
+# First sync
+echo "$TESTCASE 1" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 1"
+git -C "$REPO" tag -f "$TAG" >/dev/null
+GIT_SYNC \
+    --logtostderr \
+    --v=5 \
+    --wait=0.1 \
+    --repo="file://$REPO" \
+    --rev="refs/tags/$TAG" \
     --root="$ROOT" \
     --dest="link" \
     > "$DIR"/log."$TESTCASE" 2>&1 &
@@ -426,7 +520,56 @@ wait
 pass
 
 ##############################################
-# Test rev syncing
+# Test annotated refs/tags/foo syncing
+##############################################
+testcase "annotated-tag-ref"
+TAG="$TESTCASE"--TAG
+# First sync
+echo "$TESTCASE 1" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 1"
+git -C "$REPO" tag -af "$TAG" -m "$TESTCASE 1" >/dev/null
+GIT_SYNC \
+    --logtostderr \
+    --v=5 \
+    --wait=0.1 \
+    --repo="file://$REPO" \
+    --rev="refs/tags/$TAG" \
+    --root="$ROOT" \
+    --dest="link" \
+    > "$DIR"/log."$TESTCASE" 2>&1 &
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Add something and move the tag forward
+echo "$TESTCASE 2" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 2"
+git -C "$REPO" tag -af "$TAG" -m "$TESTCASE 2" >/dev/null
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 2"
+# Move the tag backward
+git -C "$REPO" reset -q --hard HEAD^
+git -C "$REPO" tag -af "$TAG" -m "$TESTCASE 3" >/dev/null
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Add something after the tag
+echo "$TESTCASE 3" > "$REPO"/file
+git -C "$REPO" commit -qam "$TESTCASE 3"
+sleep 3
+assert_link_exists "$ROOT"/link
+assert_file_exists "$ROOT"/link/file
+assert_file_eq "$ROOT"/link/file "$TESTCASE 1"
+# Wrap up
+remove_sync_container
+wait
+pass
+
+##############################################
+# Test specific hash syncing
 ##############################################
 testcase "hash"
 # First sync
