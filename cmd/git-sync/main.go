@@ -55,7 +55,7 @@ var flRepo = pflag.String("repo", envString("GIT_SYNC_REPO", ""),
 	"the git repository to clone")
 var flBranch = pflag.String("branch", envString("GIT_SYNC_BRANCH", ""),
 	"OBSOLETE: use --rev instead")
-var flRev = pflag.String("rev", envString("GIT_SYNC_REV", "master"),
+var flRev = pflag.String("rev", envString("GIT_SYNC_REV", "HEAD"),
 	"the git ref (branch or tag) or full SHA (specified as 'sha:<value>') to track")
 var flDepth = pflag.Int("depth", envInt("GIT_SYNC_DEPTH", 0),
 	"create a shallow clone with a history truncated to the specified number of commits")
@@ -766,7 +766,7 @@ func updateSyncMetrics(key string, start time.Time) {
 func (git *repoSync) remoteSHA(ctx context.Context) (string, error) {
 	// Fetch both the naked and dereferenced rev, take the last one (git returns
 	// the dereferenced last, if present).
-	output, err := runCommand(ctx, "", git.cmd, "ls-remote", "-q", "--heads", "--tags", git.repo, git.rev, git.rev+"^{}")
+	output, err := runCommand(ctx, "", git.cmd, "ls-remote", "-q", git.repo, git.rev, git.rev+"^{}")
 	if err != nil {
 		return "", err
 	}
@@ -1313,9 +1313,6 @@ OPTIONS
             (200) and produce a series of key=value lines, including
             "username=<value>" and "password=<value>".
 
-    --branch <string>, $GIT_SYNC_BRANCH
-            The git branch to check out. (default: master)
-
     --change-permissions <int>, $GIT_SYNC_PERMISSIONS
             Optionally change permissions on the checked-out files to the
             specified mode.
@@ -1446,7 +1443,6 @@ EXAMPLE USAGE
 
     git-sync \
         --repo=https://github.com/kubernetes/git-sync \
-        --branch=master \
         --rev=HEAD \
         --period=10s \
         --root=/mnt/git
