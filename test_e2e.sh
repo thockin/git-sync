@@ -2058,6 +2058,109 @@ function e2e::submodule_sync_shallow() {
     rm -rf $NESTED_SUBMODULE
 }
 
+###############################################
+# Test submodule remote tracking sync
+##############################################
+function e2e::submodule_remote_tracking() {
+    # Init submodule repos.
+    SUBMODULE1_REPO_NAME="sub1"
+    SUBMODULE1_NAME="submodule1-remote-tracking"
+    SUBMODULE1_BRANCH="branch1"
+
+    SUBMODULE2_REPO_NAME="sub2"
+    SUBMODULE2_NAME="submodule2-remote-tracking"
+
+    SUBMODULE3_REPO_NAME="sub3"
+    SUBMODULE3_NAME="submodule3-remote-tracking"
+
+    SUBMODULE1="$WORK/$SUBMODULE1_REPO_NAME"
+    SUBMODULE2="$WORK/$SUBMODULE2_REPO_NAME"
+    SUBMODULE3="$WORK/$SUBMODULE3_REPO_NAME"
+
+set -x
+    for i in $(seq 1 3); do
+        SUBMODULE=$(eval "echo \$SUBMODULE${i}")
+        SUBMODULE_NAME=$(eval "echo \$SUBMODULE${i}_NAME")
+
+        # Create submodule repo
+        mkdir "$SUBMODULE"
+        git -C "$SUBMODULE" init -q -b "$MAIN_BRANCH"
+        echo "submodule${i}" > "$SUBMODULE"/submodule
+        git -C "$SUBMODULE" add submodule
+        git -C "$SUBMODULE" commit -aqm "init submodule${i} file"
+
+        # Add submodule
+        git -C "$REPO" -c protocol.file.allow=always submodule add -q file://$SUBMODULE
+        git -C "$REPO" commit -aqm "add submodule${i}"
+    done
+
+    GIT_SYNC \
+        --period=100ms \
+        --repo="file://$REPO" \
+        --root="$ROOT" \
+        --link="link" \
+        --submodules-remote-tracking="$SUBMODULE1_NAME,$SUBMODULE3_NAME" \
+        >> "$1" 2>&1 &
+    wait_for_sync 3
+    assert_link_exists "$ROOT"/link
+    assert_file_exists "$ROOT"/link/file
+    assert_file_exists "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule "submodule1"
+    assert_file_exists "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule "submodule2"
+    assert_file_exists "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule "submodule3"
+
+    ## Make change in submodules repo listed in the remote tracking
+    echo "$FUNCNAME 2" > "$SUBMODULE1"/submodule
+    git -C "$SUBMODULE1" commit -qam "$FUNCNAME 2"
+    echo "$FUNCNAME 2" > "$SUBMODULE3"/submodule
+    git -C "$SUBMODULE3" commit -qam "$FUNCNAME 2"
+    wait_for_sync 3
+    assert_link_exists "$ROOT"/link
+    assert_file_exists "$ROOT"/link/file
+    assert_file_exists "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule "$FUNCNAME 2"
+    assert_file_exists "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule "submodule2"
+    assert_file_exists "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule "$FUNCNAME 2"
+
+    ## Make change in submodules repo not listed in the remote tracking
+    git -C "$SUBMODULE1" reset -q --hard HEAD^
+    git -C "$SUBMODULE3" reset -q --hard HEAD^
+    echo "$FUNCNAME 3" > "$SUBMODULE2"/submodule
+    git -C "$SUBMODULE2" commit -qam "$FUNCNAME 3"
+    wait_for_sync 3
+    assert_link_exists "$ROOT"/link
+    assert_file_exists "$ROOT"/link/file
+    assert_file_exists "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule "submodule1"
+    assert_file_exists "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule "submodule2"
+    assert_file_exists "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule "submodule3"
+
+    ## Remote tracking submodules branch
+    git -C "$SUBMODULE1" checkout -qb $SUBMODULE1_BRANCH
+    echo "$FUNCNAME 4" > "$SUBMODULE1"/submodule
+    git -C "$SUBMODULE1" commit -qam "$FUNCNAME 4"
+    git -C "$REPO" submodule -q set-branch --branch $SUBMODULE1_BRANCH -- $SUBMODULE1_NAME
+    git -C "$REPO" commit -aqm "submodule1 with branch"
+    wait_for_sync 3
+    assert_link_exists "$ROOT"/link
+    assert_file_exists "$ROOT"/link/file
+    assert_file_exists "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE1_REPO_NAME/submodule "$FUNCNAME 4"
+    assert_file_exists "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE2_REPO_NAME/submodule "submodule2"
+    assert_file_exists "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule
+    assert_file_eq "$ROOT"/link/$SUBMODULE3_REPO_NAME/submodule "submodule3"
+
+    # Wrap up
+    rm -rf $SUBMODULE1 $SUBMODULE2 $SUBMODULE3
+}
+
 ##############################################
 # Test SSH
 ##############################################
