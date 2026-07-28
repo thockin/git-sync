@@ -1300,7 +1300,7 @@ func sleepForever() {
 // exits the process with the exit code.
 //
 //nolint:unparam
-func fatalConfigErrorf(log *logging.Logger, printUsage bool, format string, a ...interface{}) {
+func fatalConfigErrorf(log *logging.Logger, printUsage bool, format string, a ...any) {
 	s := fmt.Sprintf(format, a...)
 	fmt.Fprintln(os.Stderr, s)
 	if printUsage {
@@ -2164,7 +2164,7 @@ func (git *repoSync) CallAskPassURL(ctx context.Context) error {
 
 	username := ""
 	password := ""
-	for _, line := range strings.Split(string(authData), "\n") {
+	for line := range strings.SplitSeq(string(authData), "\n") {
 		keyValues := strings.SplitN(line, "=", 2)
 		if len(keyValues) != 2 {
 			continue

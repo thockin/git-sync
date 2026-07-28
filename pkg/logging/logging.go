@@ -46,7 +46,7 @@ func New(root string, errorFile string, verbosity int) *Logger {
 }
 
 // Error implements logr.Logger.Error.
-func (l *Logger) Error(err error, msg string, kvList ...interface{}) {
+func (l *Logger) Error(err error, msg string, kvList ...any) {
 	l.Logger.WithCallDepth(1).Error(err, msg, kvList...)
 	if l.errorFile == "" {
 		return
@@ -54,10 +54,10 @@ func (l *Logger) Error(err error, msg string, kvList ...interface{}) {
 	payload := struct {
 		Msg  string
 		Err  string
-		Args map[string]interface{}
+		Args map[string]any
 	}{
 		Msg:  msg,
-		Args: map[string]interface{}{},
+		Args: map[string]any{},
 	}
 	if err != nil {
 		payload.Err = err.Error()

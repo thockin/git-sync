@@ -36,8 +36,8 @@ type Runner struct {
 
 // Just the logr methods we need in this package.
 type logintf interface {
-	Info(msg string, keysAndValues ...interface{})
-	Error(err error, msg string, keysAndValues ...interface{})
+	Info(msg string, keysAndValues ...any)
+	Error(err error, msg string, keysAndValues ...any)
 	V(level int) logr.Logger
 	WithCallDepth(depth int) logr.Logger
 }
