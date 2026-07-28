@@ -24,6 +24,7 @@ linters:
     - cyclop
     - depguard
     - dupl
+    - embeddedstructfieldcheck
     - err113
     - exhaustruct
     - funcorder
