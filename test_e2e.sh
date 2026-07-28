@@ -4021,7 +4021,6 @@ for arg; do
         print_tests
         exit 1
     fi
-    tests_to_run+=("${matches[@]}")
 done
 set -- "${tests_to_run[@]}"
 
